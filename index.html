@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Campeonato Brasileirão</title>
+  <link rel="stylesheet" href="stylesave.css">
+</head>
+<body>
+  <h1>Campeonato Brasileirão</h1>
+  <input type="text" id="nomeInput" placeholder="Digite um nome">
+  <button onclick="adicionarNome()">Adicionar Nome</button>
+  <ul id="nomesLista"></ul>
+  <button id="resultadosBtn" onclick="gerarRodadas()" disabled>Próxima Rodada</button>
+  
+  <table id="tabelaResultados">
+    <tr>
+      <th>Nome</th>
+      <th>Pontos</th>
+      <th>Gols Feitos</th>
+      <th>Gols Sofridos</th>
+      <th>Vitórias</th>
+      <th>Empates</th>
+      <th>Derrotas</th>
+    </tr>
+  </table>
+  <div id="resultadosJogos"></div>
+  <button id="atualizarBtn" onclick="atualizarTabela()" style="display: none;">Atualizar Tabela</button>
+
+  <script>
+    const nomes = [];
+    let confrontos = [];
+    const nomeInput = document.getElementById("nomeInput");
+    const resultadosBtn = document.getElementById("resultadosBtn");
+    const nomesLista = document.getElementById("nomesLista");
+    const tabelaResultados = document.getElementById("tabelaResultados");
+    const resultadosJogos = document.getElementById("resultadosJogos");
+    const atualizarBtn = document.getElementById("atualizarBtn");
+
+    function adicionarNome() {
+      const nome = nomeInput.value.trim();
+
+      if (nome !== "") {
+        nomes.push({
+          nome: nome,
+          pontos: 0,
+          golsFeitos: 0,
+          golsSofridos: 0,
+          vitorias: 0,
+          empates: 0,
+          derrotas: 0,
+          historico: [],
+        });
+
+        nomeInput.value = "";
+
+        const novoItem = document.createElement("li");
+        novoItem.textContent = nome;
+        nomesLista.appendChild(novoItem);
+
+        if (nomes.length >= 6) {
+          resultadosBtn.disabled = false;
+        }
+      }
+    }
+
+    function verificarQuantidadeParticipantes() {
+      return nomes.length >= 6;
+    }
+
+    function ordenarPorPontos() {
+      nomes.sort((a, b) => b.pontos - a.pontos);
+      atualizarTabela();
+    }
+
+    function atualizarTabela() {
+      tabelaResultados.innerHTML = `
+        <tr>
+          <th>Nome</th>
+          <th>Pontos</th>
+          <th>Gols Feitos</th>
+          <th>Gols Sofridos</th>
+          <th>Vitórias</th>
+          <th>Empates</th>
+          <th>Derrotas</th>
+        </tr>
+      `;
+      for (const nome of nomes) {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${nome.nome}</td>
+          <td>${nome.pontos}</td>
+          <td>${nome.golsFeitos}</td>
+          <td>${nome.golsSofridos}</td>
+          <td>${nome.vitorias}</td>
+          <td>${nome.empates}</td>
+          <td>${nome.derrotas}</td>
+        `;
+        tabelaResultados.appendChild(row);
+      }
+
+      atualizarBtn.style.display = "none";
+    }
+
+    function mostrarHistorico() {
+      resultadosJogos.innerHTML = "<strong>Histórico de Resultados:</strong><br>";
+
+      const numRodadas = nomes[0].historico.length;
+      for (let i = 0; i < numRodadas; i++) {
+        resultadosJogos.innerHTML += `<p><strong>Rodada ${i + 1}:</strong></p>`;
+
+        // Create a set to keep track of players already shown in this round
+        const jogadoresExibidos = new Set();
+
+        for (const nome of nomes) {
+          const jogo = nome.historico[i];
+
+          // Check if the player has already been shown in this round
+          if (jogadoresExibidos.has(nome.nome)) {
+            continue;
+          }
+
+          resultadosJogos.innerHTML += `<li>${nome.nome} ${jogo.golsFeitosCasa} X ${jogo.golsFeitosFora} ${jogo.adversario}</li>`;
+
+          // Add the player to the set of displayed players for this round
+          jogadoresExibidos.add(nome.nome);
+        }
+      }
+    }
+
+    function gerarConfrontos() {
+      const numParticipantes = nomes.length;
+      const numRodadas = numParticipantes - 1;
+      const confrontos = [];
+
+      const nomesEmbaralhados = embaralharNomes([...nomes]); // Clona o array para não modificar o original
+      for (let i = 0; i < numRodadas; i++) {
+        const rodada = [];
+        for (let j = 0; j < numParticipantes / 2; j++) {
+          rodada.push([j, numParticipantes - 1 - j]);
+        }
+        confrontos.push(rodada);
+
+        const ultimoParticipante = nomesEmbaralhados.pop();
+        nomesEmbaralhados.splice(1, 0, ultimoParticipante);
+      }
+
+      return confrontos;
+    }
+
+    function embaralharNomes(array) {
+      // Algoritmo de Fisher-Yates para embaralhar o array
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function gerarPartida() {
+      if (!verificarQuantidadeParticipantes()) {
+        return;
+      }
+
+      if (confrontos.length === 0) {
+        return false;
+      }
+
+      const rodadaAtual = confrontos.shift();
+      const participantesJogados = [];
+
+      for (const partida of rodadaAtual) {
+        const participante1 = nomes[partida[0]];
+        const participante2 = nomes[partida[1]];
+
+        // Check if both participants have already played in this round
+        if (
+          participantesJogados.includes(participante1.nome) ||
+          participantesJogados.includes(participante2.nome)
+        ) {
+          continue;
+        }
+
+        const golsParticipante1 = Math.floor(Math.random() * 6); // de 0 a 5 gols
+        const golsParticipante2 = Math.floor(Math.random() * 6); // de 0 a 5 gols
+
+        participante1.golsFeitos += golsParticipante1;
+        participante1.golsSofridos += golsParticipante2;
+
+        if (golsParticipante1 > golsParticipante2) {
+          participante1.vitorias++;
+          participante1.pontos += 3;
+          participante2.derrotas++;
+        } else if (golsParticipante1 < golsParticipante2) {
+          participante2.vitorias++;
+          participante2.pontos += 3;
+          participante1.derrotas++;
+        } else {
+          participante1.empates++;
+          participante1.pontos++;
+          participante2.empates++;
+          participante2.pontos++;
+        }
+
+        participante1.historico.push({
+          adversario: participante2.nome,
+          golsFeitosCasa: golsParticipante1,
+          golsFeitosFora: golsParticipante2,
+        });
+
+        participante2.historico.push({
+          adversario: participante1.nome,
+          golsFeitosCasa: golsParticipante2,
+          golsFeitosFora: golsParticipante1,
+        });
+
+        // Mark participants as played for this round
+        participantesJogados.push(participante1.nome);
+        participantesJogados.push(participante2.nome);
+      }
+    }
+
+    function gerarRodadas() {
+      confrontos = gerarConfrontos();
+      while (gerarPartida()) {}
+      ordenarPorPontos();
+      mostrarHistorico();
+    }
+  </script>
+</body>
+</html>
